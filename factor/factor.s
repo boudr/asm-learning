@@ -5,6 +5,7 @@
 _start:
 	pushl $5	#Argument
 	call factorial	#Fun call
+	addl $4, %esp
 
 	movl %eax, %ebx
 
