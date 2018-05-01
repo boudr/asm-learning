@@ -89,7 +89,7 @@ open_fd_out:
 	movl $SYS_OPEN, %eax
 
 	#Output filename
-	movl $ST_ARGV_2(%ebp), %ebx
+	movl ST_ARGV_2(%ebp), %ebx
 
 	#Flags for writing to the file
 	movl $O_CREAT_WRONLY_TRUNC, %ecx
@@ -107,13 +107,13 @@ read_loop_begin:
 	movl $SYS_READ, %eax
 
 	#Get the input file descriptor
-	movl $ST_FD_IN, %ebx
+	movl ST_FD_IN(%ebp), %ebx
 
 	#Location of buffer to read into
 	movl $BUFFER_DATA, %ecx
 
 	#Buffer size
-	movl $BUFFER_SIZE
+	movl $BUFFER_SIZE, %edx
 
 	#syscall
 	int $LINUX_SYSCALL
@@ -127,7 +127,7 @@ cont_read_loop:
 	pushl %eax
 	call convert_to_upper
 	popl %eax
-	addl $4, $esp
+	addl $4, %esp
 
 	#Size of the buffer
 	movl %eax, %edx
@@ -145,13 +145,64 @@ cont_read_loop:
 end_loop:
 	#Close the files
 	movl $SYS_CLOSE, %eax
-	movl $ST_FD_OUT(%ebp), %ebx
+	movl ST_FD_OUT(%ebp), %ebx
 	int $LINUX_SYSCALL
 
 	movl $SYS_CLOSE, %eax
-	movl $ST_FD_IN(%ebp), %ebx
+	movl ST_FD_IN(%ebp), %ebx
 	int $LINUX_SYSCALL
 
 	movl $SYS_EXIT, %eax
 	movl $0, %ebx
 	int $LINUX_SYSCALL
+
+#This function does the conversion
+###Constants###
+.equ LOWERCASE_A, 'a'
+.equ LOWERCASE_Z, 'z'
+
+#Conversion between upper and lower.
+.equ UPPER_CONVERSION, 'A' - 'a'
+
+###Stack Stuffs###
+.equ ST_BUFFER_LEN, 8	#Length of buffer
+.equ ST_BUFFER, 12	#Buffer
+
+convert_to_upper:
+	pushl %ebp
+	movl %esp, %ebp
+
+	movl ST_BUFFER(%ebp), %eax
+	movl ST_BUFFER_LEN(%ebp), %ebx
+	movl $0, %edi			#Current buffer offset
+
+	cmpl $0, %ebx
+	je end_convert_loop
+
+convert_loop:
+	#Get the current byte
+	movb (%eax,%edi,1), %cl
+
+	#Go to the next byte unless it is between 'a' and 'z'
+	cmpb $LOWERCASE_A, %cl
+	jl next_byte
+	cmpb $LOWERCASE_Z, %cl
+	jg next_byte
+
+	#Otherwise convert the byte to uppercase
+	addb $UPPER_CONVERSION, %cl
+
+	#Store it back where it belongs.
+	movb %cl, (%eax,%edi,1)
+
+next_byte:
+	incl %edi
+	cmpl %edi, %ebx
+	
+	jne convert_loop
+
+end_convert_loop:
+	#No return value
+	movl %ebp, %esp
+	popl %ebp
+	ret
