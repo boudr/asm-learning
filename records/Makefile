@@ -1,6 +1,6 @@
 all:
-	as record.s -32 -o record.o
-	ld -m elf_i386 record.o -o record
-
+	as write-records.s -32 -o write-records.o
+	as writer.s -32 -o writer.o
+	ld -m elf_i386 write-records.o writer.o -o write-records
 clean:
-	rm record record.o
+	rm write-records *.o
